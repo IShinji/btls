@@ -4239,6 +4239,12 @@ impl SslRef {
         unsafe { ffi::SSL_ech_accepted(self.as_ptr()) != 0 }
     }
 
+    /// Configures a client to offer TLS Channel ID (extension 30032) with the given P-256 key.
+    #[corresponds(SSL_set1_tls_channel_id)]
+    pub fn set_channel_id<T: HasPrivate>(&mut self, key: &PKeyRef<T>) -> Result<(), ErrorStack> {
+        unsafe { cvt(ffi::SSL_set1_tls_channel_id(self.as_ptr(), key.as_ptr())) }
+    }
+
     // Whether or not to enable ECH grease on `SSL`.
     #[corresponds(SSL_set_enable_ech_grease)]
     pub fn set_enable_ech_grease(&self, enable: bool) {
