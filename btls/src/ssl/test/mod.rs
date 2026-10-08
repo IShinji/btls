@@ -26,6 +26,7 @@ use super::CompliancePolicy;
 
 mod cert_compressor;
 mod cert_verify;
+mod channel_id;
 mod custom_verify;
 mod ech;
 mod grease_sigalgs;
