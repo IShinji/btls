@@ -29,6 +29,7 @@ mod cert_verify;
 mod custom_verify;
 mod ech;
 mod grease_sigalgs;
+mod npn;
 mod patch_ciphers;
 mod patches;
 mod private_key_method;

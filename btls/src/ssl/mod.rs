@@ -2086,6 +2086,32 @@ impl SslContextBuilder {
         }
     }
 
+    /// Makes a client offer an empty Next Protocol Negotiation extension (13172) and decline
+    /// whatever protocol list the server answers with. This only changes the ClientHello shape
+    /// (some legacy browser fingerprints carry the extension); no protocol is ever selected.
+    #[corresponds(SSL_CTX_set_next_proto_select_cb)]
+    pub fn enable_npn_extension(&mut self) {
+        extern "C" fn decline(
+            _ssl: *mut ffi::SSL,
+            out: *mut *mut u8,
+            out_len: *mut u8,
+            _in: *const u8,
+            _in_len: c_uint,
+            _arg: *mut std::ffi::c_void,
+        ) -> c_int {
+            // SAFETY: BoringSSL passes valid out pointers; an empty buffer selects no protocol.
+            unsafe {
+                *out = ptr::null_mut();
+                *out_len = 0;
+            }
+            ffi::SSL_TLSEXT_ERR_OK as c_int
+        }
+        // SAFETY: `self.as_ptr()` is a valid `SSL_CTX`, and `decline` ignores its (null) argument.
+        unsafe {
+            ffi::SSL_CTX_set_next_proto_select_cb(self.as_ptr(), Some(decline), ptr::null_mut())
+        }
+    }
+
     /// Set's whether the context should enable GREASE.
     #[corresponds(SSL_CTX_set_grease_enabled)]
     pub fn set_grease_enabled(&mut self, enabled: bool) {
