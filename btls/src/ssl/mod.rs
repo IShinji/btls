@@ -2886,6 +2886,36 @@ impl SslSession {
     }
 }
 
+/// A session together with the [`SslContext`] it was established under.
+///
+/// BoringSSL requires that a session is only resumed on connections that use the same context
+/// it came from (that context carries the verification configuration the session skips).
+/// Keeping the two together lets [`SslRef::set_bound_session`] check this and be safe.
+///
+#[derive(Clone)]
+pub struct BoundSession {
+    context: SslContext,
+    session: SslSession,
+}
+
+impl BoundSession {
+    /// Binds `session`, which was just handed out for `ssl` (for example inside the new session
+    /// callback), to the context of `ssl`.
+    #[must_use]
+    pub fn new(ssl: &SslRef, session: SslSession) -> Self {
+        BoundSession {
+            context: ssl.ssl_context().to_owned(),
+            session,
+        }
+    }
+
+    /// Returns the underlying session.
+    #[must_use]
+    pub fn session(&self) -> &SslSessionRef {
+        &self.session
+    }
+}
+
 impl ToOwned for SslSessionRef {
     type Owned = SslSession;
 
@@ -3864,6 +3894,21 @@ impl SslRef {
     #[corresponds(SSL_set_session)]
     pub unsafe fn set_session(&mut self, session: &SslSessionRef) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_set_session(self.as_ptr(), session.as_ptr())) }
+    }
+
+    /// Sets the session to be used, if it was established under the same `SslContext` as this
+    /// `Ssl`. Returns `Ok(false)` (and leaves the connection untouched) when the contexts differ.
+    ///
+    /// This is the safe counterpart of [`set_session`](Self::set_session): the context check is
+    /// exactly the safety requirement of the unsafe function.
+    #[corresponds(SSL_set_session)]
+    pub fn set_bound_session(&mut self, session: &BoundSession) -> Result<bool, ErrorStack> {
+        if session.context.as_ptr() != self.ssl_context().as_ptr() {
+            return Ok(false);
+        }
+        // SAFETY: the session belongs to the very `SslContext` this `Ssl` was created from.
+        unsafe { self.set_session(&session.session)? };
+        Ok(true)
     }
 
     /// Determines if the session provided to `set_session` was successfully reused.
