@@ -2106,7 +2106,10 @@ impl SslContextBuilder {
             }
             ffi::SSL_TLSEXT_ERR_OK as c_int
         }
-        unsafe { ffi::SSL_CTX_set_next_proto_select_cb(self.as_ptr(), Some(decline), ptr::null_mut()) }
+        // SAFETY: `self.as_ptr()` is a valid `SSL_CTX`, and `decline` ignores its (null) argument.
+        unsafe {
+            ffi::SSL_CTX_set_next_proto_select_cb(self.as_ptr(), Some(decline), ptr::null_mut())
+        }
     }
 
     /// Set's whether the context should enable GREASE.
